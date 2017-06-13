@@ -7,8 +7,8 @@
 #include <windows.h>
 #include <stdio.h>
 
-BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam);
 BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam);
+void FixBackgroundColor(HWND hwndTextArea);
 
 struct WindowInfo;
 void ReadWindowInfo(char* serialized_state, WindowInfo* window_info);
@@ -24,35 +24,6 @@ struct WindowInfo {
 
 // string buffer to return back to vim with the state information to persist
 char g_serialized_window_info[2048] = "";
-
-void FixBackgroundColor(HWND hwndTextArea) {
-    // Get lower right corner color and use that as stock brush color
-    // for the background color
-    if (hwndTextArea != NULL) {
-        COLORREF rgb = RGB(255,0,255);
-        HDC hdc = GetDC(hwndTextArea);
-        if (hdc != NULL) {
-            RECT rc;
-            GetWindowRect(hwndTextArea, &rc);
-            rgb = GetPixel(hdc, rc.right - rc.left - 2,
-                                    rc.bottom - rc.top - 2);
-            if (rgb != CLR_INVALID) {
-                SetDCBrushColor(hdc, rgb);
-            }
-            ReleaseDC(hwndTextArea, hdc);
-        }
-
-        SetClassLongPtr(hwndTextArea, GCLP_HBRBACKGROUND,
-                        (LONG_PTR)GetStockObject(DC_BRUSH));
-
-        // Setting the parent background removes flicker when resizing the
-        // window up to fullscreen.  However it doesn't appear to work for
-        // the first toggle.  Not sure how to remedy that.
-        HWND hwnd = GetParent(hwndTextArea);
-        HBRUSH hbr = CreateSolidBrush(rgb);
-        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hbr);
-    }
-}
 
 extern "C"
 __declspec(dllexport)
@@ -105,10 +76,6 @@ char* ToggleFullScreen(char* prev_state) {
                          mi.rcMonitor.bottom - mi.rcMonitor.top,
                          SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
-            // Now need to find the child text area window
-            // and set it's size accordingly
-            EnumChildWindows(hwnd, EnumChildProc, 0);
-
             window_info.fullscreen = TRUE;
         } else {
             // Already full screen, so restore all the previous styles
@@ -133,22 +100,6 @@ char* ToggleFullScreen(char* prev_state) {
     return g_serialized_window_info;
 }
 
-BOOL CALLBACK EnumChildProc(HWND hwnd, LPARAM lParam) {
-    char lpszClassName[100];
-
-    UNREFERENCED_PARAMETER(lParam);
-
-    GetClassName(hwnd, lpszClassName, 100);
-    if (strcmp(lpszClassName, "VimTextArea") == 0) {
-        RECT rc;
-        GetWindowRect(GetParent(hwnd), &rc);
-        //SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_EX_CLIENTEDGE);
-        //SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_EX_WINDOWEDGE);
-        SetWindowPos(hwnd, NULL, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_SHOWWINDOW | SWP_NOZORDER);
-    }
-    return TRUE;
-}
-
 BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam) {
     HWND* pphWnd = (HWND*)lParam;
 
@@ -159,6 +110,35 @@ BOOL CALLBACK FindWindowProc(HWND hwnd, LPARAM lParam) {
 
     *pphWnd = hwnd;
     return FALSE;
+}
+
+void FixBackgroundColor(HWND hwndTextArea) {
+    // Get lower right corner color and use that as stock brush color
+    // for the background color
+    if (hwndTextArea != NULL) {
+        COLORREF rgb = RGB(255,0,255);
+        HDC hdc = GetDC(hwndTextArea);
+        if (hdc != NULL) {
+            RECT rc;
+            GetWindowRect(hwndTextArea, &rc);
+            rgb = GetPixel(hdc, rc.right - rc.left - 2,
+                                    rc.bottom - rc.top - 2);
+            if (rgb != CLR_INVALID) {
+                SetDCBrushColor(hdc, rgb);
+            }
+            ReleaseDC(hwndTextArea, hdc);
+        }
+
+        SetClassLongPtr(hwndTextArea, GCLP_HBRBACKGROUND,
+                        (LONG_PTR)GetStockObject(DC_BRUSH));
+
+        // Setting the parent background removes flicker when resizing the
+        // window up to fullscreen.  However it doesn't appear to work for
+        // the first toggle.  Not sure how to remedy that.
+        HWND hwnd = GetParent(hwndTextArea);
+        HBRUSH hbr = CreateSolidBrush(rgb);
+        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)hbr);
+    }
 }
 
 void ReadWindowInfo(char* serialized_state, WindowInfo* window_info) {
