@@ -13,6 +13,11 @@ Original credit to Yasuhiro Matsumoto for VimTweak's EnableMaximize
 functionality.  Derek McLoughlin modified it to make the window borders
 disappear and have the window cover the taskbar.
 
+I have modified the code to simplify the logic and restore the original
+position and maximized/restored state of the window.  I opted to accomplish
+this via storing the state in a string in a vimscript global and passing it
+to and from the ToggleFullScreen call into gvimfullscreen.dll.
+
 ## Install and Usage
 
 Put `gvimfullscreen.dll` in your `gvim.exe` folder.
@@ -20,7 +25,11 @@ Put `gvimfullscreen.dll` in your `gvim.exe` folder.
 Add this to your vimrc:
 
 ```vimscript
-nnoremap <F11> :call libcallnr("gvimfullscreen.dll", "ToggleFullScreen", 0)<CR>
+let g:gvimfullscreen_state = ""
+function! <SID>ToggleFullScreen()
+    let g:gvimfullscreen_state = libcall("gvimfullscreen.dll", "ToggleFullScreen", g:gvimfullscreen_state)
+endfunction
+nnoremap <F11> :call <SID>ToggleFullScreen()<CR>
 ```
 
 Replace `F11` with which ever key combination you desire.
