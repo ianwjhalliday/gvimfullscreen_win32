@@ -83,12 +83,14 @@ char* ToggleFullScreen(char* prev_state) {
                            &mi);
 
             // Fullscreen it
+#if 0 // appears to not be a problem on Windows 10
             if (window_info.maximized) {
                 // Restore the window if it was maximized first, because
                 // Windows seems to have trouble hiding the taskbar when
                 // changing the size of a maximized window.
                 SendMessage(hwnd, WM_SYSCOMMAND, SC_RESTORE, 0);
             }
+#endif
             SetWindowLong(hwnd, GWL_STYLE,
                           window_info.style & ~(WS_CAPTION |
                               WS_THICKFRAME));
@@ -118,9 +120,11 @@ char* ToggleFullScreen(char* prev_state) {
                          window_info.rc.right - window_info.rc.left,
                          window_info.rc.bottom - window_info.rc.top,
                          SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+#if 0 // again appears to not be a problem on Windows 10
             if (window_info.maximized) {
                 SendMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
             }
+#endif
             window_info.fullscreen = FALSE;
         }
     }
